@@ -2140,19 +2140,7 @@ async function checkVideoStatusByHistoryId(
 
     logger.info(`即时查询: historyId=${historyId}, status=${status}, failCode=${failCode || '无'}, items=${item_list.length}`);
 
-    // status=20 表示还在处理中
-    if (status === 20) {
-      return null;
-    }
-
-    // status=30 表示生成失败
-    if (status === 30) {
-      logger.warn(`即时查询: 视频生成失败, historyId=${historyId}, failCode=${failCode}`);
-      return null;
-    }
-
-    // status=10 或其他非20值，尝试提取视频URL
-    // 尝试获取高质量视频URL
+    // 先尝试提取视频URL，避免官网结果已就绪但状态字段仍未切换时被误判为处理中
     const itemId = item_list?.[0]?.item_id
       || item_list?.[0]?.id
       || item_list?.[0]?.local_item_id
@@ -2181,7 +2169,20 @@ async function checkVideoStatusByHistoryId(
       return videoUrl;
     }
 
-    // item_list 非空但无法提取URL，可能还在处理中
+    // status=30 表示生成失败
+    if (status === 30) {
+      logger.warn(`即时查询: 视频生成失败, historyId=${historyId}, failCode=${failCode}`);
+      return null;
+    }
+
+    // status=20 表示还在处理中
+    if (status === 20) {
+      if (item_list.length > 0) {
+        logger.warn(`即时查询: status=20 且 item_list 非空但无法提取视频URL, historyId=${historyId}`);
+      }
+      return null;
+    }
+
     if (item_list.length === 0) {
       logger.info(`即时查询: item_list 为空，可能仍在处理, historyId=${historyId}`);
       return null;
@@ -2222,6 +2223,15 @@ interface AsyncTaskData {
 interface AsyncTask extends AsyncTaskData {
   _resolve?: (value: void) => void;
   _promise?: Promise<void>;
+}
+
+function settleTaskWaiter(task: AsyncTask): void {
+  const resolve = task._resolve;
+  task._resolve = undefined;
+  task._promise = undefined;
+  if (resolve) {
+    resolve();
+  }
 }
 
 // 任务存储目录
@@ -2410,7 +2420,7 @@ function restartPollingForTask(task: AsyncTask): void {
       }
     } finally {
       activeAsyncCount--;
-      if (task._resolve) task._resolve();
+      settleTaskWaiter(task);
     }
   })();
 }
@@ -2868,9 +2878,7 @@ export function submitAsyncVideoTask(
     } finally {
       activeAsyncCount--;
       // 通知查询接口任务已完成（succeeded/failed），或后台轮询已停止（超时保持processing）
-      if (task._resolve) {
-        task._resolve();
-      }
+      settleTaskWaiter(task);
     }
   })();
 
@@ -2920,7 +2928,9 @@ export async function queryAsyncVideoTask(
     if (task._promise) {
       logger.info(`查询接口等待后台轮询完成: ${taskId}`);
       await task._promise;
-      return task;
+      if (task.status === "succeeded" || task.status === "failed") {
+        return task;
+      }
     }
 
     // 后台轮询已停止（超时或重启后的 processing 任务），做 on-demand 即时查询
