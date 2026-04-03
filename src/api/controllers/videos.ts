@@ -3034,6 +3034,11 @@ interface AsyncTask extends AsyncTaskData {
   _promise?: Promise<void>;
 }
 
+function clearTaskRuntimeWaiters(task: AsyncTask): void {
+  task._resolve = undefined;
+  task._promise = undefined;
+}
+
 // 任务存储目录
 const ASYNC_TASK_DIR = path.join(process.cwd(), "tmp", "async-tasks");
 
@@ -3221,6 +3226,7 @@ function restartPollingForTask(task: AsyncTask): void {
     } finally {
       activeAsyncCount--;
       if (task._resolve) task._resolve();
+      clearTaskRuntimeWaiters(task);
     }
   })();
 }
@@ -3681,6 +3687,7 @@ export function submitAsyncVideoTask(
       if (task._resolve) {
         task._resolve();
       }
+      clearTaskRuntimeWaiters(task);
     }
   })();
 
@@ -3730,7 +3737,9 @@ export async function queryAsyncVideoTask(
     if (task._promise) {
       logger.info(`查询接口等待后台轮询完成: ${taskId}`);
       await task._promise;
-      return task;
+      if (task.status === "succeeded" || task.status === "failed") {
+        return task;
+      }
     }
 
     // 后台轮询已停止（超时或重启后的 processing 任务），做 on-demand 即时查询
