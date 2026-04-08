@@ -3,7 +3,7 @@ import _ from 'lodash';
 import Request from '@/lib/request/Request.ts';
 import Response from '@/lib/response/Response.ts';
 import { tokenSplit } from '@/api/controllers/core.ts';
-import { generateVideo, generateSeedanceVideo, generateInternationalVideo, generateInternationalSeedanceVideo, isSeedanceModel, isInternationalSeedanceModel, isInternationalVideoModel, DEFAULT_MODEL, submitAsyncVideoTask, queryAsyncVideoTask, submitInternationalAsyncVideoTask } from '@/api/controllers/videos.ts';
+import { generateVideo, generateSeedanceVideo, generateInternationalSeedanceVideo, isSeedanceModel, isInternationalSeedanceModel, DEFAULT_MODEL, submitAsyncVideoTask, queryAsyncVideoTask, submitInternationalAsyncVideoTask } from '@/api/controllers/videos.ts';
 import util from '@/lib/util.ts';
 
 export default {
@@ -187,10 +187,6 @@ export default {
                 if (!hasKeyedFiles && !hasKeyedUrlFields && finalFilePaths.length === 0) {
                     throw new Error('国际 Seedance 接口至少需要一个素材：keyed multipart 文件、keyed URL 字段或 file_paths/filePaths');
                 }
-            } else {
-                if (finalDuration !== 5 && finalDuration !== 10) {
-                    throw new Error('国际普通视频模型 duration 仅支持 5 或 10 秒');
-                }
             }
 
             let videoUrl: string;
@@ -205,19 +201,6 @@ export default {
                         filePaths: finalFilePaths,
                         filesMap: request.filesMap,
                         body: request.body,
-                    },
-                    token
-                );
-            } else if (isInternationalVideoModel(model)) {
-                videoUrl = await generateInternationalVideo(
-                    model,
-                    prompt,
-                    {
-                        ratio: finalRatio,
-                        resolution,
-                        duration: finalDuration,
-                        filePaths: finalFilePaths,
-                        files: request.files,
                     },
                     token
                 );
@@ -293,10 +276,6 @@ export default {
                 }
                 if (!hasKeyedFiles && !hasKeyedUrlFields && finalFilePaths.length === 0) {
                     throw new Error('国际 Seedance 接口至少需要一个素材：keyed multipart 文件、keyed URL 字段或 file_paths/filePaths');
-                }
-            } else if (isInternationalVideoModel(model)) {
-                if (finalDuration !== 5 && finalDuration !== 10) {
-                    throw new Error('国际普通视频模型 duration 仅支持 5 或 10 秒');
                 }
             } else {
                 throw new Error(`国际接口暂不支持模型: ${model}`);

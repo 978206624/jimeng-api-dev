@@ -653,7 +653,7 @@ async function uploadImageForVideo(imageUrl: string, refreshToken: string, regio
 }
 
 // 从Buffer上传视频图片
-async function uploadImageBufferForVideo(buffer: Buffer, refreshToken: string, regionInfo?: import("./core.ts").RegionInfo): Promise<string> {
+export async function uploadImageBufferForVideo(buffer: Buffer, refreshToken: string, regionInfo?: import("./core.ts").RegionInfo): Promise<string> {
   try {
     logger.info(`开始从Buffer上传视频图片，大小: ${buffer.length}字节`);
 
@@ -2265,7 +2265,7 @@ function collectInternationalMaterialFields(filesMap: Record<string, any[]>, bod
   return { imageFields, videoFields };
 }
 
-async function uploadInternationalImageUrl(imageUrl: string, refreshToken: string, regionInfo: import("./core.ts").RegionInfo): Promise<string> {
+export async function uploadInternationalImageUrl(imageUrl: string, refreshToken: string, regionInfo: import("./core.ts").RegionInfo): Promise<string> {
   const response = await fetch(imageUrl);
   if (!response.ok) throw new Error(`下载图片失败: ${response.status}`);
   const buffer = Buffer.from(await response.arrayBuffer());
